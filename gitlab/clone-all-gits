@@ -25,7 +25,6 @@ CREDENTIALS="username:password"' >.env
 
 # Fonction pour récupérer tous les projects
 get_projects() {
-  local group_id=$1
   curl -s --header "PRIVATE-TOKEN: $PRIVATE_TOKEN" -u "${CREDENTIALS}" "$GITLAB_URL/projects"
 }
 
@@ -67,7 +66,7 @@ main() {
   echo "OK."
 
   # si il n'y a d'url de projet, c'est qu'on n'a rien à récupérer => next
-  if [ -z "${project_urls}" ]; then
+  if [ "${nb_projects}" -eq 0 ] ; then
     echo "Vous n'avez accès à aucun repository."
     exit 1
   fi
