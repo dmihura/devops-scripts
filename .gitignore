@@ -1,2 +1,57 @@
-github/.env
+# Environnement et virtualenv
+.venv/
+venv/
+env/
+ENV/
+
+# Fichiers d'environnement (tokens, secrets)
+.env
+.env.local
+.env.*.local
+
+# Répertoire de sortie (repos clonés)
+github/output/
+output/
+
+# IDE et éditeurs
 *.iml
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Linux
+.directory
+
+# Fichiers temporaires
+*.tmp
+*.bak
+*.swp
