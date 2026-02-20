@@ -105,6 +105,32 @@ def update_repo(path: Path) -> None:
     if rc != 0:
         raise RuntimeError(f"Échec de la mise à jour dans {path}")
 
+    # Après le fetch, vérifier si une branche suivie a de nouveaux commits distants
+    try:
+        # Lister les branches locales
+        proc = subprocess.run(["git", "for-each-ref", "--format=%(refname:short)", "refs/heads"], cwd=path, capture_output=True, text=True, check=True)
+        branches = [b.strip() for b in proc.stdout.splitlines() if b.strip()]
+        for b in branches:
+            # Vérifier si la branche locale a un upstream (b@{u})
+            try:
+                subprocess.run(["git", "rev-parse", "--abbrev-ref", f"{b}@{{u}}"], cwd=path, capture_output=True, text=True, check=True)
+            except subprocess.CalledProcessError:
+                # Pas d'upstream configuré pour cette branche
+                continue
+
+            # Compter les commits présents sur l'upstream mais pas localement
+            proc2 = subprocess.run(["git", "rev-list", "--count", f"{b}..{b}@{{u}}"], cwd=path, capture_output=True, text=True, check=True)
+            behind_count = int(proc2.stdout.strip() or "0")
+            if behind_count > 0:
+                # Il y a des commits distants qui ne sont pas encore dans la branche locale
+                return True
+    except Exception:
+        # En cas d'erreur, ne pas considérer que la mise à jour a eu lieu
+        return False
+
+    # Aucune branche suivie n'a de nouveaux commits
+    return False
+
 
 def main(argv: Optional[List[str]] = None) -> int:
     # Charger les variables d'environnement depuis le fichier .env
@@ -116,6 +142,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(description="Cloner ou mettre à jour tous les repos GitHub visibles par un jeton")
     parser.add_argument("--token", help="Jeton GitHub (remplace la variable d'environnement GITHUB_TOKEN)")
     parser.add_argument("--output", default=None, help="Répertoire de sortie pour les clones (par défaut: ./output)")
+    parser.add_argument("--flat", action="store_true", help="Mettre tous les dépôts à plat dans le répertoire de sortie (pas de sous-dossiers par organisation)")
     args = parser.parse_args(argv)
 
     # Récupérer le token depuis l'argument ou la variable d'environnement
@@ -147,6 +174,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     updated_count = 0
     error_count = 0
 
+    # Si --flat : placer les dépôts directement dans output_dir. Gérer conflits de noms.
+    seen_names: dict[str, str] = {}
+
     for r in repos:
         owner = r.get("owner", {}).get("login") or r.get("full_name", "unknown").split("/")[0]
         name = r.get("name")
@@ -156,13 +186,28 @@ def main(argv: Optional[List[str]] = None) -> int:
             # Ignorer les entrées malformées
             continue
 
-        local_path = output_dir / owner / name
+        # Calculer le chemin local en fonction de l'option --flat
+        if args.flat:
+            candidate = output_dir / name
+            if name in seen_names and seen_names[name] != owner:
+                # Conflit : même nom de repo pour owners différents -> disambiguation
+                local_path = output_dir / f"{owner}__{name}"
+                print(f"Attention : conflit de nom pour '{name}' entre '{seen_names[name]}' et '{owner}'. Utilisation de '{local_path.name}'")
+            else:
+                local_path = candidate
+                seen_names[name] = owner
+        else:
+            local_path = output_dir / owner / name
 
         try:
             if local_path.exists() and (local_path / ".git").exists():
                 # Si le dépôt existe déjà, on l'actualise
-                update_repo(local_path)
-                updated_count += 1
+                changed = update_repo(local_path)
+                if changed:
+                    updated_count += 1
+                else:
+                    # Aucun changement détecté
+                    pass
             else:
                 # Sinon on le clone depuis l'URL SSH
                 clone_repo(ssh_url, local_path)

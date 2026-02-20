@@ -36,7 +36,7 @@ install:
 	@echo "✓ Venv créé et dépendances installées"
 
 clone:
-	$(PYTHON) github/clone-all-repos.py --output /mnt/c/dev/workspace/
+	$(PYTHON) github/clone-all-repos.py --output /mnt/c/dev/workspace/ --flat
 
 clean:
 	@echo "Suppression du venv $(VENV)..."
