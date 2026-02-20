@@ -1,0 +1,80 @@
+#!/bin/bash
+# shebang inutile car le fichier est inclus dans le .bashrc de l'utilisateur
+# mais utile pour l'édition dans un éditeur de texte pour que la coloration syntaxique soit correcte.
+
+# Vérification des variables d'environnement requises
+if [[ -z "${DEV_BASE}" ]]; then
+    echo "Veuillez définir les variables DEV_BASE avant de charger ce fichier."
+    return
+fi
+
+alias ll='ls -l'
+alias la='ls -a'
+
+alias dev='cd ${DEV_BASE}'
+
+alias lastcommits='git log --pretty=format:"%H %an %s %ad" --date=format:"%Y-%m-%d %H:%M:%S"| head -n 5'
+
+alias dkillall='docker kill $(docker ps -q) && docker rm $(docker ps -a -q)'
+
+alias lint-markdown='MSYS_NO_PATHCONV=1 docker run -it --rm -v "$(pwd):/workspace" registry.com/shared/utils/linters:1.0 bash -c "markdownlint /workspace/**/*.md --disable MD013 MD024"'
+lint-shell() {
+    MSYS_NO_PATHCONV=1 docker run -it --rm -v "$(pwd):/workspace" \
+    registry.com/shared/utils/linters:1.0 \
+    bash -c "shellcheck $* -e SC1091"
+}
+
+alias editrc="vi ~/.bashrc"
+alias sourcerc="source ~/.bashrc"
+
+# ============================================
+# Alias Git 
+# ============================================
+
+# Commandes de base
+alias gs='git status'                   # Statut du dépôt
+alias gd='git diff'                     # Voir les différences
+alias ga='git add'                      # Ajouter des fichiers à l'index
+alias gc='git commit -m'                # Commit avec message
+alias gp='git push'                     # Pousser les changements vers le dépôt distant
+alias gpl='git pull'                    # Récupérer les changements depuis le dépôt distant
+
+# Status et informations
+alias gl='git log --pretty=format:"%C(yellow)%h%C(reset) - %C(cyan)%an%C(reset) : %s %C(green)(%cr)%C(reset)" --abbrev-commit' # Log coloré avec auteur et date relative
+alias glgg='git log --graph --pretty=format:"%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset" --abbrev-commit' # Log graphique coloré complet
+
+# Commits
+alias gca='git commit -am'              # Ajouter tous les fichiers modifiés et commiter
+
+# Ajout de fichiers
+alias gaa='git add .'                   # Ajouter tous les fichiers du répertoire courant
+
+# Diff
+alias gds='git diff --staged'           # Voir les différences des fichiers indexés
+alias gdw='git diff --word-diff'        # Voir les différences mot par mot
+
+# Config
+alias guser='git config --global user.name && git config --global user.email' # Afficher le nom et l'email configurés
+alias guserset='git config --global user.name' # Définir le nom d'utilisateur globalement
+alias gemailset='git config --global user.email' # Définir l'email globalement
+
+# Utilitaire pour lister les alias Git avec leur description
+ghelp() {
+    echo "Alias Git disponibles:"
+    echo "===================="
+    # Version optimisée avec grep pour filtrer d'abord les lignes pertinentes
+    grep "^alias g.*#" "${DEV_BASE}/devops-scripts/bash/bashrc_inc" | while IFS= read -r line; do
+        line="${line#alias }"
+        alias_name="${line%%=*}"
+        rest="${line#*=}"
+        alias_cmd="${rest%%#*}"
+        alias_cmd="${alias_cmd//\'/}"
+        alias_cmd="${alias_cmd#"${alias_cmd%%[![:space:]]*}"}"
+        alias_cmd="${alias_cmd%"${alias_cmd##*[![:space:]]}"}"
+        desc="${rest#*#}"
+        desc="${desc#"${desc%%[![:space:]]*}"}"
+        local cmd_display="$alias_cmd"
+        [[ ${#alias_cmd} -gt 20 ]] && cmd_display="${alias_cmd:0:20}..."
+        printf "  %-8s %-23s %s\n" "$alias_name" "$cmd_display" "$desc"
+    done
+}
